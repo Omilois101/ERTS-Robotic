@@ -608,7 +608,7 @@ void Switch_Init(void){
 
 void Move_Interrupt(void){
     BumpEdgeTrigger_Init();
-    while (1){
+    do{
         Port2_Init();             // Initialise P2.2-P2.0 built-in LEDs
         Port2_Output(WHITE);      // White is the colour to represent moving forward
         Motor_ForwardSimple(500,1);
@@ -616,7 +616,7 @@ void Move_Interrupt(void){
             Port2_Output(0);
             break;
         }
-    }
+    }while(1);
 }
 
 
