@@ -540,10 +540,12 @@ int main(void){
                    }
  }
 
-  Clock_Delay1ms(80);
+  SysTick_Wait10ms(100);
   Port2_Output(0);
+  while(1){
   do{            // Wait for SW2 switch
         SysTick_Wait10ms(10); // Wait here for every 100ms
         REDLED = 1;     // The red LED is blinking waiting for command
         }while(!(SW2IN | SW1IN));
+}
 }
