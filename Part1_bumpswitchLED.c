@@ -113,13 +113,12 @@ void PORT4_IRQHandler(void){
       // (*NOTE: in this code only bump switch 3 has been calculated,
       //         please figure out the other bump switches)
       Motor_InitSimple();       // Initialise DC Motor
-      switch(status){
-
+      
+   switch(status){
         case 0x02: // Bump switch 1
          Port2_Init();
          Port2_Output(RED);
          Motor_StopSimple(100);
-            
          if(Mode == 'f'){
             Port2_Init();
             // Change the coloured LED into green (backward)
@@ -141,7 +140,7 @@ void PORT4_IRQHandler(void){
             SysTick_Wait10ms(100);
          }else{
              while(1){
-                 Port2_Init();             // Initialise P2.2-P2.0 built-in LEDs
+                 Port2_Init();             
                  Port2_Output(0);
                  Motor_StopSimple(1);
 
@@ -150,7 +149,7 @@ void PORT4_IRQHandler(void){
                      break;
                  }
              }
-         }
+          }
          break;
         case 0x06: // Bump switch 2
           Port2_Init();
