@@ -77,7 +77,9 @@ static void taskPlaySong( void *pvParameters );   // TODO: declare a static void
 static void taskdcMotor( void *pvParameters );  // TODO: declare a static void function for a task called "taskdcMotor"
 static void taskReadInputSwitch( void *pvParameters );// TODO: declare a static void function for a task called "taskReadInputSwitch"
 static void taskDisplayOutputLED( void *pvParameters );// TODO: declare a static void function for a task called "taskDisplayOutputLED"
-
+static void taskBumpSwitch_interrupts( void *pvParameters );
+static void taskdcMotor_interrupts( void *pvParameters );
+static void taskOutputLED_interrupts( void *pvParameters );
 
 void main_program( void ); //Called by main() to create the main program application
 
@@ -94,8 +96,8 @@ xTaskHandle taskHandle_InputSwitch; // TODO: declare an identifier of task handl
 xTaskHandle taskHandle_OutputLED;  // TODO: declare an identifier of task handler called "taskHandle_OutputLED"
 
 xTaskHandle taskHandle_dcMotor_interrupts; 
-xTaskHandle taskHandle_OutputLED_interrupt; 
-
+xTaskHandle taskHandle_OutputLED_interrupts; 
+xTaskHandle taskHandle_BumpSwitch_interrupts;
 
 void main_program( void )
 {
@@ -123,19 +125,19 @@ void main_program( void )
         }
 
         if(SW2IN){    //Interrupt
+             // Creates a Semaphore 
              xSemaphore =  xSemaphoreCreateBinary(); 
-             
+             // Instantiation for Interrupts 
              EnableInterrupts();
-
+             BumpSwitch_Init();
+            
              xTaskCreate(taskMasterThread, "taskT", 128, NULL, 2, &taskHandle_BlinkRedLED);
              xTaskCreate(taskPlaySong, "taskS", 128, NULL, 1, &taskHandle_PlaySong);
              xTaskCreate(taskReadInputSwitch, "taskR", 128, NULL, 1, &taskHandle_InputSwitch);
 
-             xTaskCreate(taskBumpSwitch, "taskB", 128, NULL, 1, &taskHandle_BumpSwitch);
-
-             xTaskCreate(taskdcMotor, "taskM", 128, NULL, 1, &taskHandle_dcMotor);
-
-             xTaskCreate(taskDisplayOutputLED, "taskD", 128, NULL, 1, &taskHandle_OutputLED);
+             xTaskCreate(taskBumpSwitch_interrupts, "taskB", 128, NULL, 1, &taskHandle_BumpSwitch_interrupts);
+             xTaskCreate( taskdcMotor_interrupts, "taskM", 128, NULL, 1, &taskHandle_dcMotor_interrupts);
+             xTaskCreate( taskOutputLED_interrupt, "taskD", 128, NULL, 1, &taskHandle_OutputLED_interrupt);
             break;
         }
     }while(1);
@@ -338,5 +340,13 @@ static void taskdcMotor( void *pvParameters ){
 
 
 /// --------------------------------------Interrupt -----------------------------------------------------
+static void taskBumpSwitch_interrupts( void *pvParameters ){
 
+}
+static void taskdcMotor_interrupts( void *pvParameters ){
+
+}
+static void taskOutputLED_interrupts( void *pvParameters ){
+
+}
 /// --------------------------------------End Interrupt -----------------------------------------------------
