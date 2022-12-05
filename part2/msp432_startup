@@ -1,6 +1,6 @@
 /******************************************************************************
 * 
-*  Copyright (C) 2012 - 2016 Texas Instruments Incorporated - http://www.ti.com/ 
+*  Copyright (C) 2012 - 2016 Texas Instruments Incorporated - http://www.ti.com/
 * 
 *  Redistribution and use in source and binary forms, with or without 
 *  modification, are permitted provided that the following conditions 
@@ -41,7 +41,7 @@
 static void resetISR(void);
 static void nmiISR(void);
 static void faultISR(void);
-void defaultISR(void) __attribute__((weak));
+static void defaultISR(void);
 
 
 /* External declaration for the reset handler that is to be called when the */
@@ -58,10 +58,11 @@ extern unsigned long __STACK_END;
 extern void xPortSysTickHandler( void );
 extern void vPortSVCHandler( void );
 extern void xPortPendSVHandler( void );
-extern void PORT4_IRQHandler    (void) __attribute__((weak,alias("defaultISR")));
 
+/* device specific interrupt handler */
+extern void PORT4_IRQHandler( void );
 
-/* Intrrupt vector table.  Note that the proper constructs must be placed on this to  */
+/* Interrupt vector table.  Note that the proper constructs must be placed on this to  */
 /* ensure that it ends up at physical address 0x0000.0000 or at the start of          */
 /* the program if located at a start address other than 0.                            */
 #pragma RETAIN(interruptVectors)
@@ -80,11 +81,11 @@ void (* const interruptVectors[])(void) =
     0,                                      /* Reserved                  */
     0,                                      /* Reserved                  */
     0,                                      /* Reserved                  */
-	vPortSVCHandler,                        /* SVCall handler            */
+    vPortSVCHandler,                        /* SVCall handler            */
     defaultISR,                             /* Debug monitor handler     */
     0,                                      /* Reserved                  */
-	xPortPendSVHandler,                     /* The PendSV handler        */
-	xPortSysTickHandler,                    /* The SysTick handler       */
+    xPortPendSVHandler,                     /* The PendSV handler        */
+    xPortSysTickHandler,                    /* The SysTick handler       */
     defaultISR,                             /* PSS ISR                   */
     defaultISR,                             /* CS ISR                    */
     defaultISR,                             /* PCM ISR                   */
@@ -95,12 +96,13 @@ void (* const interruptVectors[])(void) =
     defaultISR,                             /* COMP1 ISR                 */
     defaultISR,                             /* TA0_0 ISR                 */
     defaultISR,                             /* TA0_N ISR                 */
-	defaultISR,                             /* TA1_0 ISR                 */
+    defaultISR,                             /* TA1_0 ISR                 */
     defaultISR,                             /* TA1_N ISR                 */
-	defaultISR,                             /* TA2_0 ISR                 */
+    defaultISR,                             /* TA2_0 ISR                 */
     defaultISR,                             /* TA2_N ISR                 */
     defaultISR,                             /* TA3_0 ISR                 */
     defaultISR,                             /* TA3_N ISR                 */
+    defaultISR,                             /* EUSCIA0 ISR               */
     defaultISR,                             /* EUSCIA1 ISR               */
     defaultISR,                             /* EUSCIA2 ISR               */
     defaultISR,                             /* EUSCIA3 ISR               */
@@ -109,6 +111,8 @@ void (* const interruptVectors[])(void) =
     defaultISR,                             /* EUSCIB2 ISR               */
     defaultISR,                             /* EUSCIB3 ISR               */
     defaultISR,                             /* ADC14 ISR                 */
+    defaultISR,                             /* T32_INT1 ISR              */
+    defaultISR,                             /* T32_INT2 ISR              */
     defaultISR,                             /* T32_INTC ISR              */
     defaultISR,                             /* AES ISR                   */
     defaultISR,                             /* RTC ISR                   */
@@ -117,10 +121,10 @@ void (* const interruptVectors[])(void) =
     defaultISR,                             /* DMA_INT2 ISR              */
     defaultISR,                             /* DMA_INT1 ISR              */
     defaultISR,                             /* DMA_INT0 ISR              */
-	defaultISR,                             /* PORT1 ISR                 */
+    defaultISR,                             /* PORT1 ISR                 */
     defaultISR,                             /* PORT2 ISR                 */
     defaultISR,                             /* PORT3 ISR                 */
-    PORT4_IRQHandler,                       /* PORT4 ISR                 */      /////Changed from deafault to PORT4_IRQHandler
+    PORT4_IRQHandler,                      /* Port4 Interrupt           */
     defaultISR,                             /* PORT5 ISR                 */
     defaultISR,                             /* PORT6 ISR                 */
     defaultISR,                             /* Reserved 41               */
@@ -161,7 +165,7 @@ void resetISR(void)
     SystemInit();
 
     /* Jump to the CCS C Initialization Routine. */
-	MAP_WDT_A_holdTimer();
+    MAP_WDT_A_holdTimer();
     __asm("    .global _c_int00\n"
           "    b.w     _c_int00");
 }
