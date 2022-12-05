@@ -1,5 +1,4 @@
 
-
 /*
  * FreeRTOS Kernel V10.1.1
  * Copyright (C) 2018 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
@@ -77,11 +76,13 @@ static void taskPlaySong( void *pvParameters );   // TODO: declare a static void
 static void taskdcMotor( void *pvParameters );  // TODO: declare a static void function for a task called "taskdcMotor"
 static void taskReadInputSwitch( void *pvParameters );// TODO: declare a static void function for a task called "taskReadInputSwitch"
 static void taskDisplayOutputLED( void *pvParameters );// TODO: declare a static void function for a task called "taskDisplayOutputLED"
-static void taskBumpSwitch_interrupts( void *pvParameters );
+
+//static void taskBumpSwitch_interrupts( void *pvParameters );
 static void taskdcMotor_interrupts( void *pvParameters );
 static void taskOutputLED_interrupts( void *pvParameters );
 
 void main_program( void ); //Called by main() to create the main program application
+
 
 
 static void prvConfigureClocks( void ); //The configuration of clocks for frequency.
@@ -95,9 +96,9 @@ xTaskHandle taskHandle_dcMotor;     // TODO: declare an identifier of task handl
 xTaskHandle taskHandle_InputSwitch; // TODO: declare an identifier of task handler called "taskHandle_InputSwitch"
 xTaskHandle taskHandle_OutputLED;  // TODO: declare an identifier of task handler called "taskHandle_OutputLED"
 
-xTaskHandle taskHandle_dcMotor_interrupts; 
-xTaskHandle taskHandle_OutputLED_interrupts; 
-xTaskHandle taskHandle_BumpSwitch_interrupts;
+xTaskHandle taskHandle_dcMotor_interrupts;
+xTaskHandle taskHandle_OutputLED_interrupts;
+//xTaskHandle taskHandle_BumpSwitch_interrupts;
 
 void main_program( void )
 {
@@ -106,43 +107,45 @@ void main_program( void )
     SysTick_Init();       // TODO: initialise systick timer
     RedLED_Init();   // initialise the red LED
     int i;
+    int counter;
 
-    do{
+     do{
 
-        if (!(SW2IN | SW1IN)){
-            for (i=0; i<1000000; i++);
-            REDLED = 1;     // The red LED is blinking waiting for command
-            continue;
+         if (!(SW2IN | SW1IN)){
+             for (i=0; i<1000000; i++);
+             REDLED = 1;     // The red LED is blinking waiting for command
+             continue;
+         }if(SW1IN){
+             counter = 0;
+             while(SW1IN){
+                 SysTick_Wait10ms(10);
+                 counter++;
+             }
+             if (counter < 5){ //Polling
+                 xTaskCreate(taskMasterThread, "taskT", 128, NULL, 2, &taskHandle_BlinkRedLED);
+                 xTaskCreate(taskBumpSwitch, "taskB", 128, NULL, 1, &taskHandle_BumpSwitch);
+                 xTaskCreate(taskPlaySong, "taskS", 128, NULL, 1, &taskHandle_PlaySong);
+                 xTaskCreate(taskdcMotor, "taskM", 128, NULL, 1, &taskHandle_dcMotor);
+                 xTaskCreate(taskReadInputSwitch, "taskR", 128, NULL, 1, &taskHandle_InputSwitch);
+                 xTaskCreate(taskDisplayOutputLED, "taskD", 128, NULL, 1, &taskHandle_OutputLED);
+                 break;
+             }
+             else if (counter > 5){ //Interrupt
+                 // Creates a Semaphore
+                 xSemaphore =  xSemaphoreCreateBinary();
+                 // Instantiation for Interrupts
 
-        }if(SW1IN){    //Polling
-               xTaskCreate(taskMasterThread, "taskT", 128, NULL, 2, &taskHandle_BlinkRedLED);
-               xTaskCreate(taskBumpSwitch, "taskB", 128, NULL, 1, &taskHandle_BumpSwitch);
-               xTaskCreate(taskPlaySong, "taskS", 128, NULL, 1, &taskHandle_PlaySong);
-               xTaskCreate(taskdcMotor, "taskM", 128, NULL, 1, &taskHandle_dcMotor);
-               xTaskCreate(taskReadInputSwitch, "taskR", 128, NULL, 1, &taskHandle_InputSwitch);
-               xTaskCreate(taskDisplayOutputLED, "taskD", 128, NULL, 1, &taskHandle_OutputLED);
-            break;
-        }
+                 xTaskCreate(taskMasterThread, "taskT", 128, NULL, 2, &taskHandle_BlinkRedLED);
+                 xTaskCreate(taskPlaySong, "taskS", 128, NULL, 1, &taskHandle_PlaySong);
+                 xTaskCreate(taskReadInputSwitch, "taskR", 128, NULL, 1, &taskHandle_InputSwitch);
 
-        if(SW2IN){    //Interrupt
-             // Creates a Semaphore 
-             xSemaphore =  xSemaphoreCreateBinary(); 
-             // Instantiation for Interrupts 
-             EnableInterrupts();
-             BumpSwitch_Init();
-            
-             xTaskCreate(taskMasterThread, "taskT", 128, NULL, 2, &taskHandle_BlinkRedLED);
-             xTaskCreate(taskPlaySong, "taskS", 128, NULL, 1, &taskHandle_PlaySong);
-             xTaskCreate(taskReadInputSwitch, "taskR", 128, NULL, 1, &taskHandle_InputSwitch);
-
-             xTaskCreate(taskBumpSwitch_interrupts, "taskB", 128, NULL, 1, &taskHandle_BumpSwitch_interrupts);
-             xTaskCreate( taskdcMotor_interrupts, "taskM", 128, NULL, 1, &taskHandle_dcMotor_interrupts);
-             xTaskCreate( taskOutputLED_interrupt, "taskD", 128, NULL, 1, &taskHandle_OutputLED_interrupt);
-            break;
-        }
-    }while(1);
-
-
+                 //xTaskCreate(taskBumpSwitch_interrupts, "taskB", 128, NULL, 1, &taskHandle_BumpSwitch_interrupts);
+                 xTaskCreate( taskdcMotor_interrupts, "taskM", 128, NULL, 1, &taskHandle_dcMotor_interrupts);
+                 xTaskCreate( taskOutputLED_interrupts, "taskD", 128, NULL, 1, &taskHandle_OutputLED_interrupts);
+                 break;
+             }
+         }
+     }while(1);
 
      vTaskStartScheduler(); // TODO: start the scheduler
 
@@ -155,9 +158,18 @@ void main_program( void )
 }
 
 void PORT4_IRQHandler(void){
+
+
     bumpSwitch_status = P4->IV;
 
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    xSemaphoreGiveFromISR( xSemaphore, &xHigherPriorityTaskWoken );
+
     P4->IFG &= ~0xED; // clear flag
+
+  //  portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+
 }
 /*-----------------------------------------------------------------*/
 /*------------------- FreeRTOS configuration ----------------------*/
@@ -203,7 +215,6 @@ void vPreSleepProcessing( uint32_t ulExpectedIdleTime ){}
 /*-------------   DO NOT MODIFY ANYTHING ABOVE HERE   -------------*/
 /*--------------------------- END ---------------------------------*/
 /*-----------------------------------------------------------------*/
-/// --------------------------------------Shared Tasks -------------------------------------------
 static void Switch_Init(void){
     // negative logic built-in Button 1 connected to P1.1
     // negative logic built-in Button 2 connected to P1.4
@@ -213,6 +224,8 @@ static void Switch_Init(void){
     P1->REN |= 0x12;        // enable pull resistors on P1.4 and P1.1
     P1->OUT |= 0x12;        // P1.4 and P1.1 are pull-up
 }
+/// --------------------------------------Shared Tasks -------------------------------------------
+
 // a static void function for taskReadInputSwitch
 static void taskReadInputSwitch( void *pvParameters ){ //STOP MUSIC
 
@@ -226,9 +239,6 @@ static void taskReadInputSwitch( void *pvParameters ){ //STOP MUSIC
             for (i=0; i<1000000; i++);  // this waiting loop is used
                                         // to prevent the switch bounce.
         }
-
-
-
         if (i_SW1 == 1) {
             REDLED = 1;     // turn on the red LED
             vTaskSuspend(taskHandle_PlaySong); // TODO: suspend the task taskHandle_PlaySong
@@ -241,9 +251,29 @@ static void taskReadInputSwitch( void *pvParameters ){ //STOP MUSIC
     }
 }
 
+// a static void function for taskMasterThread
+static void taskMasterThread( void *pvParameters )
+{
+    int i;
+
+    ColorLED_Init();  // TODO: initialise the color LED
+    RedLED_Init();   // initialise the red LED
+//    BumpSwitch_Init();
+ //   EnableInterrupts();
+    while(!SW2IN){                  // Wait for SW2 switch
+        for (i=0; i<1000000; i++);  // Wait here waiting for command
+        REDLED = !REDLED;           // The red LED is blinking
+    }
+
+    REDLED = 0;     // TODO: Turn off the RED LED, we no longer need that.
+
+    vTaskSuspend(taskHandle_BlinkRedLED);     // TODO: This function (taskMasterThread)is no longer needed.
+                                        //       Please suspend this task itself, or maybe just delete it.
+                                        //       Question: what are the difference between 'suspend' the task,
+                                        //                 or 'delete' the task?
+};
 // TODO: create a static void function for taskPlaySong
 static void taskPlaySong( void *pvParameters ){
-
     for( ;; )
     {
         init_song_pwm();   // TODO: initialise the song
@@ -260,14 +290,6 @@ static void taskPlaySong( void *pvParameters ){
 static void taskBumpSwitch( void *pvParameters ){
 
     BumpSwitch_Init(); // TODO: initialise bump switches
-
-
-      // TODO: Read the input of bump switches forever:
-        //       Continuously read the 6 bump switches in a loop,
-        //       and return it to the "bumpSwitch_status" variable.
-        //       Note that the bumpSwitch_status is a global variable,
-        //       so do not declare it again here locally.
-        // 4.7,6,5,3,2,0
 
 
     for( ;; )
@@ -293,41 +315,12 @@ static void taskDisplayOutputLED( void *pvParameters ){
 
 
 
-// a static void function for taskMasterThread
-static void taskMasterThread( void *pvParameters )
-{
-    int i;
-
-    ColorLED_Init();  // TODO: initialise the color LED
-    RedLED_Init();   // initialise the red LED
-
-    while(!SW2IN){                  // Wait for SW2 switch
-        for (i=0; i<1000000; i++);  // Wait here waiting for command
-        REDLED = !REDLED;           // The red LED is blinking
-    }
-
-    REDLED = 0;     // TODO: Turn off the RED LED, we no longer need that.
-
-    //////////////////////////////////////////////////////////////////
-    // TIP: to suspend a task, use vTaskSuspend in FreeRTOS
-    // URL: https://www.freertos.org/a00130.html
-    //////////////////////////////////////////////////////////////////
-
-    //////////////////////////////////////////////////////////////////
-    // TIP: to delete a task, use vTaskDelete in FreeRTOS
-    // URL: https://www.freertos.org/a00126.html
-    //////////////////////////////////////////////////////////////////
-
-    vTaskSuspend(taskHandle_BlinkRedLED);     // TODO: This function (taskMasterThread)is no longer needed.
-                                        //       Please suspend this task itself, or maybe just delete it.
-                                        //       Question: what are the difference between 'suspend' the task,
-                                        //                 or 'delete' the task?
-};
 
 // TODO: create a static void function for taskdcMotor
 static void taskdcMotor( void *pvParameters ){
 
     for(;;){
+
        dcMotor_Init(); // TODO: initialise the DC Motor
        dcMotor_Forward(500,1);
        if (bumpSwitch_status == 0x6D || bumpSwitch_status == 0xAD || bumpSwitch_status == 0xCD || bumpSwitch_status == 0xE5 || bumpSwitch_status == 0xE9 || bumpSwitch_status == 0xEC){ // TODO: use a polling that continuously read from the bumpSwitch_status,
@@ -340,13 +333,25 @@ static void taskdcMotor( void *pvParameters ){
 
 
 /// --------------------------------------Interrupt -----------------------------------------------------
-static void taskBumpSwitch_interrupts( void *pvParameters ){
-
-}
 static void taskdcMotor_interrupts( void *pvParameters ){
 
+    for(;;){
+
+        dcMotor_Init(); // TODO: initialise the DC Motor
+        dcMotor_Forward(500,1);
+    }
 }
 static void taskOutputLED_interrupts( void *pvParameters ){
 
+      for( ;; )
+       {
+          xSemaphoreTake( xSemaphore, portMAX_DELAY );
+         // vTaskSuspend(taskHandle_dcMotor_interrupts);
+           OutputLED_interrupts(bumpSwitch_status);
+           dcMotor_interrupts(bumpSwitch_status);
+        }
 }
+
+
+
 /// --------------------------------------End Interrupt -----------------------------------------------------
