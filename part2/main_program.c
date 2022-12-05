@@ -64,7 +64,7 @@ uint8_t bumpSwitch_status;   // TODO: declare a global variable to read bump swi
                             //       name this as bumpSwitch_status and use uint8_t
 
 // Semaphore Declaration
-SemaphoreHandle_t xSemaphore;
+SemaphoreHandle_t xbSemaphore= NULL;
 
 // static void Switch_Init
 static void Switch_Init(void);
@@ -132,16 +132,19 @@ void main_program( void )
              }
              else if (counter > 5){ //Interrupt
                  // Creates a Semaphore
-                 xSemaphore =  xSemaphoreCreateBinary();
+                 xbSemaphore =  xSemaphoreCreateBinary();
+
                  // Instantiation for Interrupts
 
+                 BumpSwitch_Init();
+                 BumpSwitch_Interupt_Init();
                  xTaskCreate(taskMasterThread, "taskT", 128, NULL, 2, &taskHandle_BlinkRedLED);
                  xTaskCreate(taskPlaySong, "taskS", 128, NULL, 1, &taskHandle_PlaySong);
                  xTaskCreate(taskReadInputSwitch, "taskR", 128, NULL, 1, &taskHandle_InputSwitch);
 
                  //xTaskCreate(taskBumpSwitch_interrupts, "taskB", 128, NULL, 1, &taskHandle_BumpSwitch_interrupts);
-                 xTaskCreate( taskdcMotor_interrupts, "taskM", 128, NULL, 1, &taskHandle_dcMotor_interrupts);
-                 xTaskCreate( taskOutputLED_interrupts, "taskD", 128, NULL, 1, &taskHandle_OutputLED_interrupts);
+                 xTaskCreate(taskdcMotor_interrupts, "taskM", 128, NULL, 1, &taskHandle_dcMotor_interrupts);
+                 xTaskCreate(taskOutputLED_interrupts, "taskD", 128, NULL, 1, &taskHandle_OutputLED_interrupts);
                  break;
              }
          }
@@ -160,15 +163,19 @@ void main_program( void )
 void PORT4_IRQHandler(void){
 
 
-    bumpSwitch_status = P4->IV;
+       bumpSwitch_status = P4->IV;      // 2*(n+1) where n is highest priority
 
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        BaseType_t xHigher;
+        xHigher = pdFALSE;
 
-    xSemaphoreGiveFromISR( xSemaphore, &xHigherPriorityTaskWoken );
+        P4->IFG &= ~0xED; // clear flag
 
-    P4->IFG &= ~0xED; // clear flag
+        //the interrupt handler will give a semaphore
+        xSemaphoreGiveFromISR(xbSemaphore, &xHigher);
 
-  //  portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+
+
+    //portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 
 }
 /*-----------------------------------------------------------------*/
@@ -290,13 +297,10 @@ static void taskPlaySong( void *pvParameters ){
 static void taskBumpSwitch( void *pvParameters ){
 
     BumpSwitch_Init(); // TODO: initialise bump switches
-
-
     for( ;; )
     {
         bumpSwitch_status = Bump_Read_Input();    // TODO: use bumpSwitch_status as the variable and
                                                   //       use Bump_Read_Input to read the input
-
     };
 
 
@@ -342,12 +346,12 @@ static void taskdcMotor_interrupts( void *pvParameters ){
     }
 }
 static void taskOutputLED_interrupts( void *pvParameters ){
-
+      EnableInterrupts();
       for( ;; )
        {
-          xSemaphoreTake( xSemaphore, portMAX_DELAY );
-         // vTaskSuspend(taskHandle_dcMotor_interrupts);
+           xSemaphoreTake(xbSemaphore, portMAX_DELAY);
            OutputLED_interrupts(bumpSwitch_status);
+           vTaskDelay(1);
            dcMotor_interrupts(bumpSwitch_status);
         }
 }
