@@ -1,0 +1,38 @@
+    int counter;
+
+    do{
+
+        if (!(SW2IN | SW1IN)){
+            for (i=0; i<1000000; i++);
+            REDLED = 1;     // The red LED is blinking waiting for command
+            continue;
+        }if(SW1IN){
+            for (counter=0; SW1IN==1; i++){
+                SysTick_Wait10ms(10);
+            }
+            if (counter < 5){ //Polling
+                xTaskCreate(taskMasterThread, "taskT", 128, NULL, 2, &taskHandle_BlinkRedLED);
+                xTaskCreate(taskBumpSwitch, "taskB", 128, NULL, 1, &taskHandle_BumpSwitch);
+                xTaskCreate(taskPlaySong, "taskS", 128, NULL, 1, &taskHandle_PlaySong);
+                xTaskCreate(taskdcMotor, "taskM", 128, NULL, 1, &taskHandle_dcMotor);
+                xTaskCreate(taskReadInputSwitch, "taskR", 128, NULL, 1, &taskHandle_InputSwitch);
+                xTaskCreate(taskDisplayOutputLED, "taskD", 128, NULL, 1, &taskHandle_OutputLED);
+                break;
+            }
+            if (counter > 5){ //Interrupt
+                // Creates a Semaphore
+                xSemaphore =  xSemaphoreCreateBinary();
+                // Instantiation for Interrupts
+                EnableInterrupts();
+                BumpSwitch_Init();
+
+                xTaskCreate(taskMasterThread, "taskT", 128, NULL, 2, &taskHandle_BlinkRedLED);
+                xTaskCreate(taskPlaySong, "taskS", 128, NULL, 1, &taskHandle_PlaySong);
+                xTaskCreate(taskReadInputSwitch, "taskR", 128, NULL, 1, &taskHandle_InputSwitch);
+
+                xTaskCreate(taskBumpSwitch_interrupts, "taskB", 128, NULL, 1, &taskHandle_BumpSwitch_interrupts);
+                xTaskCreate( taskdcMotor_interrupts, "taskM", 128, NULL, 1, &taskHandle_dcMotor_interrupts);
+                xTaskCreate( taskOutputLED_interrupt, "taskD", 128, NULL, 1, &taskHandle_OutputLED_interrupts);
+                break;
+            }
+    }while(1);
